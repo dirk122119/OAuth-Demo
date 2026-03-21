@@ -62,16 +62,18 @@ function PostCard({
   );
 }
 
-/** 首頁：教學 + 若有 authCode 則顯示本次摘要 */
+/** 首頁：有 authorization_code 才顯示 ?code；換完 token 才顯示 POST /token */
 export function OAuthFlowVisual({
   authCode,
   codeVerifier,
   clientId,
+  accessToken,
 }: {
   authCode?: string;
-  /** 多數情況登入後未保留；若有則一併展示 */
   codeVerifier?: string;
   clientId?: string;
+  /** 有值代表已換到 token，才顯示 POST 區塊 */
+  accessToken?: string;
 }) {
   const origin =
     typeof window !== "undefined" ? window.location.origin : "https://your-app";
@@ -80,7 +82,12 @@ export function OAuthFlowVisual({
   const exampleVerifier =
     "dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk";
 
-  const hasSession = Boolean(authCode);
+  const showCode = Boolean(authCode);
+  const showPost = Boolean(accessToken);
+
+  if (!showCode && !showPost) {
+    return null;
+  }
 
   return (
     <section
@@ -98,72 +105,70 @@ export function OAuthFlowVisual({
         端點換 access token（PKCE 驗證就在這裡）。
       </p>
 
-      <div className="grid gap-6 md:grid-cols-2">
-        <div className="space-y-2">
-          <h3 className="text-sm font-medium text-zinc-700 dark:text-zinc-300">
-            ① Redirect 帶回（query）
-          </h3>
-          <UrlBar>
-            <span className="text-zinc-500">{redirectUri}</span>
-            <span className="text-emerald-600 dark:text-emerald-400 font-semibold">
-              ?code=
-            </span>
-            <span className="bg-emerald-500/15 dark:bg-emerald-500/20 px-0.5 rounded">
-              {hasSession ? truncateDisplay(authCode!) : exampleCode}
-            </span>
-            <span className="text-zinc-500">（可能還有 &amp;scope=… 等）</span>
-          </UrlBar>
-          <p className="text-xs text-zinc-500 dark:text-zinc-400">
-            這就是「授權碼」：只出現在網址或伺服器日誌，不該當長期秘密存。
-          </p>
-        </div>
+      <div
+        className={`grid gap-6 ${showCode && showPost ? "md:grid-cols-2" : "md:max-w-2xl"}`}
+      >
+        {showCode && (
+          <div className="space-y-2">
+            <h3 className="text-sm font-medium text-zinc-700 dark:text-zinc-300">
+              ① Redirect 帶回（query）
+            </h3>
+            <UrlBar>
+              <span className="text-zinc-500">{redirectUri}</span>
+              <span className="text-emerald-600 dark:text-emerald-400 font-semibold">
+                ?code=
+              </span>
+              <span className="bg-emerald-500/15 dark:bg-emerald-500/20 px-0.5 rounded">
+                {truncateDisplay(authCode!)}
+              </span>
+              <span className="text-zinc-500">（可能還有 &amp;scope=… 等）</span>
+            </UrlBar>
+            <p className="text-xs text-zinc-500 dark:text-zinc-400">
+              這就是「授權碼」：只出現在網址或伺服器日誌，不該當長期秘密存。
+            </p>
+          </div>
+        )}
 
-        <div className="space-y-2">
-          <h3 className="text-sm font-medium text-zinc-700 dark:text-zinc-300">
-            ② Token 交換（POST body）
-          </h3>
-          <PostCard
-            title="POST（瀏覽器 → Google）"
-            endpoint="https://oauth2.googleapis.com/token"
-            rows={[
-              {
-                key: "grant_type",
-                value: "authorization_code",
-              },
-              {
-                key: "code",
-                value: hasSession
-                  ? truncateDisplay(authCode!)
-                  : exampleCode,
-                highlight: true,
-              },
-              {
-                key: "code_verifier",
-                value: codeVerifier
-                  ? truncateDisplay(codeVerifier)
-                  : hasSession
-                    ? "（登入時已從 sessionStorage 讀出並送出，此處未保留）"
-                    : truncateDisplay(exampleVerifier),
-                highlight: true,
-              },
-              {
-                key: "client_id",
-                value: clientId ?? "YOUR_CLIENT_ID.apps.googleusercontent.com",
-              },
-              {
-                key: "redirect_uri",
-                value: redirectUri,
-              },
-            ]}
-          />
-        </div>
+        {showPost && (
+          <div className="space-y-2">
+            <h3 className="text-sm font-medium text-zinc-700 dark:text-zinc-300">
+              ② Token 交換（POST body）
+            </h3>
+            <PostCard
+              title="POST（瀏覽器 → Google）"
+              endpoint="https://oauth2.googleapis.com/token"
+              rows={[
+                {
+                  key: "grant_type",
+                  value: "authorization_code",
+                },
+                {
+                  key: "code",
+                  value: authCode
+                    ? truncateDisplay(authCode)
+                    : truncateDisplay(exampleCode),
+                  highlight: true,
+                },
+                {
+                  key: "code_verifier",
+                  value: codeVerifier
+                    ? truncateDisplay(codeVerifier)
+                    : "（登入時已從 sessionStorage 讀出並送出，此處未保留）",
+                  highlight: true,
+                },
+                {
+                  key: "client_id",
+                  value: clientId ?? "YOUR_CLIENT_ID.apps.googleusercontent.com",
+                },
+                {
+                  key: "redirect_uri",
+                  value: redirectUri,
+                },
+              ]}
+            />
+          </div>
+        )}
       </div>
-
-      {!hasSession && (
-        <p className="text-xs text-zinc-500 dark:text-zinc-500 border-l-2 border-zinc-300 dark:border-zinc-600 pl-3">
-          完成一次 Google 登入後，左側網址列與 POST 的 <code>code</code> 會顯示你這次的真實片段（截斷顯示）。
-        </p>
-      )}
     </section>
   );
 }

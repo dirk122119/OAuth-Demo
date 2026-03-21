@@ -5,36 +5,49 @@ export const SEQUENCE_STEPS = [
     id: 0,
     label: "Generate PKCE",
     detail: "Browser: code_verifier → SHA-256 → code_challenge",
+    hintZh:
+      "先在下方「Live Cryptography」按 Generate，產生 code_verifier 與 code_challenge。",
   },
   {
     id: 1,
     label: "Authorize",
     detail: "Redirect to accounts.google.com with code_challenge (S256)",
+    hintZh:
+      "在「OAuth Flow」按 Login with Google，瀏覽器會帶著 challenge 導向 Google。",
   },
   {
     id: 2,
     label: "User consents",
     detail: "Google stores challenge; user signs in & approves scopes",
+    hintZh:
+      "在 Google 頁面登入並同意授權（此步發生在 Google，不在本頁）。",
   },
   {
     id: 3,
     label: "Authorization code",
     detail: "Redirect to /auth/callback?code=…",
+    hintZh:
+      "同意後 Google 把你導回 /auth/callback，網址會帶 ?code= 授權碼。",
   },
   {
     id: 4,
     label: "Token request",
     detail: "POST oauth2.googleapis.com/token with code + code_verifier",
+    hintZh:
+      "Callback 頁會用 code + code_verifier POST 到 token 端點（畫面上會先預覽）。",
   },
   {
     id: 5,
     label: "Tokens",
     detail: "access_token, id_token (optional refresh_token)",
+    hintZh: "Google 回傳 access_token（與可選的 id_token、refresh_token）。",
   },
   {
     id: 6,
     label: "UserInfo",
     detail: "GET userinfo with Bearer access_token",
+    hintZh:
+      "用 access_token 呼叫 UserInfo，下方會顯示大頭照與 email。",
   },
 ] as const;
 
@@ -55,12 +68,12 @@ export function SequenceDiagram({
   const active = Math.min(6, Math.max(0, syncedStep));
 
   return (
-    <section id="section-sequence-diagram" className="space-y-4 mt-12">
+    <section id="section-sequence-diagram" className="space-y-4">
       <h2 className="text-lg font-semibold text-zinc-900 dark:text-zinc-100">
         Synced Sequence Diagram (ROB-7)
       </h2>
       <p className="text-sm text-zinc-500 dark:text-zinc-400">
-        目前步驟會依 PKCE / 登入狀態自動高亮；點步驟可執行對應動作（捲動或觸發按鈕）。
+        建議由上往下看：圖會依你目前狀態自動對齊步驟；點步驟按鈕可捲到對應區塊或觸發 Generate / Login。
       </p>
 
       {actionFeedback && (

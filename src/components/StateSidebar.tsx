@@ -8,6 +8,7 @@ export interface OAuthState {
   authCode?: string;
   accessToken?: string;
   refreshToken?: string;
+  idToken?: string;
 }
 
 export function StateSidebar({ state }: { state: OAuthState }) {

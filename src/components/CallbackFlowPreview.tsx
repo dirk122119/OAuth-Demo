@@ -1,70 +1,54 @@
 "use client";
 
-import { useEffect, useRef, useState, useCallback } from "react";
 import { truncateDisplay } from "@/lib/oauthDisplay";
 
 /**
- * /auth/callback：在真正 POST token 前，先讓使用者看到
- * ?code= 與即將送出的 form body（與首頁 OAuthFlowVisual 呼應）
+ * /auth/callback：收到 ?code= 後先預覽，僅在使用者點按鈕時才 POST /token
  */
 export function CallbackFlowPreview({
   code,
   codeVerifier,
   clientId,
   redirectUri,
-  onProceed,
-  autoDelayMs = 2800,
+  onSendTokenRequest,
+  /** 與序列圖同頁時用：不要全螢幕置中 */
+  embedded = false,
 }: {
   code: string;
   codeVerifier: string;
   clientId: string;
   redirectUri: string;
-  onProceed: () => void;
-  autoDelayMs?: number;
+  /** 手動觸發：POST oauth2.googleapis.com/token */
+  onSendTokenRequest: () => void;
+  embedded?: boolean;
 }) {
-  const totalSec = Math.max(1, Math.ceil(autoDelayMs / 1000));
-  const [sec, setSec] = useState(totalSec);
-  const doneRef = useRef(false);
-  const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  const proceedOnce = useCallback(() => {
-    if (doneRef.current) return;
-    doneRef.current = true;
-    if (timeoutRef.current) {
-      clearTimeout(timeoutRef.current);
-      timeoutRef.current = null;
-    }
-    onProceed();
-  }, [onProceed]);
-
-  useEffect(() => {
-    timeoutRef.current = setTimeout(proceedOnce, autoDelayMs);
-    const interval = setInterval(() => {
-      setSec((s) => Math.max(0, s - 1));
-    }, 1000);
-    return () => {
-      if (timeoutRef.current) clearTimeout(timeoutRef.current);
-      clearInterval(interval);
-    };
-  }, [autoDelayMs, proceedOnce]);
-
   const href =
     typeof window !== "undefined" ? window.location.href : "";
 
+  const shell =
+    embedded
+      ? "w-full text-zinc-100"
+      : "min-h-screen bg-zinc-950 text-zinc-100 p-6 flex flex-col items-center justify-center";
+
   return (
-    <div className="min-h-screen bg-zinc-950 text-zinc-100 p-6 flex flex-col items-center justify-center">
-      <div className="max-w-2xl w-full space-y-6">
+    <div className={shell}>
+      <div className="max-w-2xl w-full space-y-6 mx-auto">
         <h1 className="text-xl font-bold text-center">
-          Callback：先看見 <span className="text-emerald-400">?code</span> 與{" "}
-          <span className="text-violet-400">POST /token</span>
+          已收到 <span className="text-emerald-400">authorization_code</span>
         </h1>
-        <p className="text-sm text-zinc-400 text-center">
-          下方為本次真實參數（截斷顯示）。約 {sec}s 後自動換 token，或按按鈕立即繼續。
+        <p className="text-sm text-zinc-400 text-center leading-relaxed">
+          網址可含 <code className="text-zinc-300">iss</code>、
+          <code className="text-zinc-300">scope</code>、
+          <code className="text-zinc-300">authuser</code> 等；重點是{" "}
+          <code className="text-emerald-400">code</code>。
+          <strong className="text-zinc-300"> 不會自動換 token</strong>
+          —請確認後再點按鈕。
         </p>
 
         <div className="rounded-xl border border-zinc-700 bg-zinc-900/80 overflow-hidden">
           <div className="px-3 py-2 bg-zinc-800 border-b border-zinc-700 text-xs text-zinc-400">
-            目前網址（含 query）— authorization_code 在 <code className="text-emerald-400">code</code>
+            ① 目前網址（query 中的 <code className="text-emerald-400">code</code> 即
+            authorization_code）
           </div>
           <div className="p-4 font-mono text-xs break-all text-emerald-300">
             {href}
@@ -74,7 +58,7 @@ export function CallbackFlowPreview({
         <div className="rounded-xl border border-violet-600/40 bg-violet-950/40 overflow-hidden">
           <div className="px-3 py-2 border-b border-violet-800/50 bg-violet-900/30">
             <p className="text-xs font-semibold text-violet-200">
-              即將送出：POST https://oauth2.googleapis.com/token
+              ② 按下按鈕後才會送出：POST https://oauth2.googleapis.com/token
             </p>
             <p className="text-[10px] text-violet-400 mt-1">
               Content-Type: application/x-www-form-urlencoded
@@ -89,13 +73,14 @@ export function CallbackFlowPreview({
           </dl>
         </div>
 
-        <div className="flex justify-center gap-3">
+        <div className="flex justify-center pt-2">
           <button
+            id="callback-send-token"
             type="button"
-            onClick={proceedOnce}
-            className="px-5 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-sm font-medium"
+            onClick={onSendTokenRequest}
+            className="px-6 py-3 rounded-xl bg-violet-600 hover:bg-violet-500 text-white text-sm font-semibold shadow-lg shadow-violet-500/20 transition-colors"
           >
-            立即換 token
+            發送 POST /token（code + code_verifier）
           </button>
         </div>
       </div>

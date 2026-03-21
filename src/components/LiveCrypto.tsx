@@ -16,6 +16,8 @@ import type { OAuthState } from "./StateSidebar";
 
 interface LiveCryptoProps {
   onStateChange: (state: Partial<OAuthState>) => void;
+  /** 每次 Generate 前呼叫：清上一輪 OAuth / session，避免與新 PKCE 混用 */
+  onBeforeGenerate?: () => void;
 }
 
 export type LiveCryptoHandle = {
@@ -25,7 +27,7 @@ export type LiveCryptoHandle = {
 type PipelineStep = "idle" | "verifier" | "hashing" | "challenge";
 
 export const LiveCrypto = forwardRef<LiveCryptoHandle, LiveCryptoProps>(
-  function LiveCrypto({ onStateChange }, ref) {
+  function LiveCrypto({ onStateChange, onBeforeGenerate }, ref) {
   const [verifier, setVerifier] = useState<string>("");
   const [hashHex, setHashHex] = useState<string>("");
   const [challenge, setChallenge] = useState<string>("");
@@ -33,6 +35,11 @@ export const LiveCrypto = forwardRef<LiveCryptoHandle, LiveCryptoProps>(
   const [isAnimating, setIsAnimating] = useState(false);
 
   const generate = useCallback(async () => {
+    onBeforeGenerate?.();
+    setVerifier("");
+    setHashHex("");
+    setChallenge("");
+    setStep("idle");
     setIsAnimating(true);
     setStep("verifier");
 
@@ -54,7 +61,7 @@ export const LiveCrypto = forwardRef<LiveCryptoHandle, LiveCryptoProps>(
     onStateChange({ codeChallenge: c });
 
     setIsAnimating(false);
-  }, [onStateChange]);
+  }, [onStateChange, onBeforeGenerate]);
 
   useImperativeHandle(
     ref,
