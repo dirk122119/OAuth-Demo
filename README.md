@@ -1,4 +1,10 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+OAuth 2.1 PKCE Playground — interactive educational tool for PKCE flow.
+
+## Google OAuth Setup
+
+1. [Google Cloud Console](https://console.cloud.google.com/apis/credentials) → Create OAuth 2.0 Client ID → Web application
+2. Add Authorized redirect URI: `http://localhost:3000/auth/callback`
+3. Copy `.env.example` to `.env.local` and set `NEXT_PUBLIC_GOOGLE_CLIENT_ID`
 
 ## Getting Started
 
