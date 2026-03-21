@@ -62,30 +62,26 @@ function PostCard({
   );
 }
 
-/** 首頁：有 authorization_code 才顯示 ?code；換完 token 才顯示 POST /token */
+const EXAMPLE_CODE = "4/0AeDxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx";
+const EXAMPLE_VERIFIER =
+  "dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk";
+
+/** 視覺化：redirect ?code 與 POST /token（換票實際在 Route Handler） */
 export function OAuthFlowVisual({
-  authCode,
   codeVerifier,
   clientId,
-  accessToken,
+  serverSessionActive,
 }: {
-  authCode?: string;
   codeVerifier?: string;
   clientId?: string;
-  /** 有值代表已換到 token，才顯示 POST 區塊 */
-  accessToken?: string;
+  /** 已由伺服器換票並寫入 HttpOnly session */
+  serverSessionActive?: boolean;
 }) {
   const origin =
     typeof window !== "undefined" ? window.location.origin : "https://your-app";
-  const redirectUri = `${origin}/auth/callback`;
-  const exampleCode = "4/0AeDxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx";
-  const exampleVerifier =
-    "dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk";
+  const redirectUri = `${origin}/api/auth/callback`;
 
-  const showCode = Boolean(authCode);
-  const showPost = Boolean(accessToken);
-
-  if (!showCode && !showPost) {
+  if (!serverSessionActive) {
     return null;
   }
 
@@ -98,76 +94,64 @@ export function OAuthFlowVisual({
         視覺化：?code 與 POST /token
       </h2>
       <p className="text-sm text-zinc-600 dark:text-zinc-400">
-        Google 同意後會<strong>用網址</strong>把 <code className="text-emerald-600 dark:text-emerald-400">authorization_code</code>{" "}
-        帶回你的 <code className="text-xs">redirect_uri</code>；接著瀏覽器用{" "}
-        <strong>POST</strong> 把 <code className="text-amber-600 dark:text-amber-400">code</code> 與{" "}
-        <code className="text-amber-600 dark:text-amber-400">code_verifier</code> 一起送給 token
-        端點換 access token（PKCE 驗證就在這裡）。
+        Google 同意後會把 <code className="text-emerald-600 dark:text-emerald-400">authorization_code</code>{" "}
+        帶到 <code className="text-xs">redirect_uri</code>；本專案由{" "}
+        <strong>Next.js Route Handler</strong> 讀取 code 與 HttpOnly 裡的{" "}
+        <code className="text-amber-600 dark:text-amber-400">code_verifier</code>
+        ，在<strong>伺服器</strong>向 token 端點換票並寫入 session cookie。① 的{" "}
+        <code className="text-xs">?code=</code> 可用 DevTools → Network 看{" "}
+        <code className="text-xs">/api/auth/callback</code> 請求網址；② 為伺服器對 Google 的 POST（瀏覽器不直送）。
       </p>
 
-      <div
-        className={`grid gap-6 ${showCode && showPost ? "md:grid-cols-2" : "md:max-w-2xl"}`}
-      >
-        {showCode && (
-          <div className="space-y-2">
-            <h3 className="text-sm font-medium text-zinc-700 dark:text-zinc-300">
-              ① Redirect 帶回（query）
-            </h3>
-            <UrlBar>
-              <span className="text-zinc-500">{redirectUri}</span>
-              <span className="text-emerald-600 dark:text-emerald-400 font-semibold">
-                ?code=
-              </span>
-              <span className="bg-emerald-500/15 dark:bg-emerald-500/20 px-0.5 rounded">
-                {truncateDisplay(authCode!)}
-              </span>
-              <span className="text-zinc-500">（可能還有 &amp;scope=… 等）</span>
-            </UrlBar>
-            <p className="text-xs text-zinc-500 dark:text-zinc-400">
-              這就是「授權碼」：只出現在網址或伺服器日誌，不該當長期秘密存。
-            </p>
-          </div>
-        )}
+      <div className="grid gap-6 md:grid-cols-2">
+        <div className="space-y-2">
+          <h3 className="text-sm font-medium text-zinc-700 dark:text-zinc-300">
+            ① Redirect 帶回（query，示意）
+          </h3>
+          <UrlBar>
+            <span className="text-zinc-500">{redirectUri}</span>
+            <span className="text-emerald-600 dark:text-emerald-400 font-semibold">
+              ?code=
+            </span>
+            <span className="bg-emerald-500/15 dark:bg-emerald-500/20 px-0.5 rounded">
+              {truncateDisplay(EXAMPLE_CODE)}
+            </span>
+            <span className="text-zinc-500">（可能還有 &amp;scope=… 等）</span>
+          </UrlBar>
+          <p className="text-xs text-zinc-500 dark:text-zinc-400">
+            code 不進 React state；實際字串以 Network 該次 GET 為準。
+          </p>
+        </div>
 
-        {showPost && (
-          <div className="space-y-2">
-            <h3 className="text-sm font-medium text-zinc-700 dark:text-zinc-300">
-              ② Token 交換（POST body）
-            </h3>
-            <PostCard
-              title="POST（瀏覽器 → Google）"
-              endpoint="https://oauth2.googleapis.com/token"
-              rows={[
-                {
-                  key: "grant_type",
-                  value: "authorization_code",
-                },
-                {
-                  key: "code",
-                  value: authCode
-                    ? truncateDisplay(authCode)
-                    : truncateDisplay(exampleCode),
-                  highlight: true,
-                },
-                {
-                  key: "code_verifier",
-                  value: codeVerifier
-                    ? truncateDisplay(codeVerifier)
-                    : "（登入時已從 sessionStorage 讀出並送出，此處未保留）",
-                  highlight: true,
-                },
-                {
-                  key: "client_id",
-                  value: clientId ?? "YOUR_CLIENT_ID.apps.googleusercontent.com",
-                },
-                {
-                  key: "redirect_uri",
-                  value: redirectUri,
-                },
-              ]}
-            />
-          </div>
-        )}
+        <div className="space-y-2">
+          <h3 className="text-sm font-medium text-zinc-700 dark:text-zinc-300">
+            ② Token 交換（POST body，伺服器發送）
+          </h3>
+          <PostCard
+            title="POST（Next.js → Google）"
+            endpoint="https://oauth2.googleapis.com/token"
+            rows={[
+              { key: "grant_type", value: "authorization_code" },
+              {
+                key: "code",
+                value: truncateDisplay(EXAMPLE_CODE),
+                highlight: true,
+              },
+              {
+                key: "code_verifier",
+                value: codeVerifier
+                  ? truncateDisplay(codeVerifier)
+                  : `（HttpOnly cookie「${EXAMPLE_VERIFIER.slice(0, 12)}…」由 Route Handler 讀取）`,
+                highlight: true,
+              },
+              {
+                key: "client_id",
+                value: clientId ?? "YOUR_CLIENT_ID.apps.googleusercontent.com",
+              },
+              { key: "redirect_uri", value: redirectUri },
+            ]}
+          />
+        </div>
       </div>
     </section>
   );

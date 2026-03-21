@@ -5,10 +5,10 @@ import { useSearchParams } from "next/navigation";
 export interface OAuthState {
   codeVerifier?: string;
   codeChallenge?: string;
-  authCode?: string;
-  accessToken?: string;
-  refreshToken?: string;
-  idToken?: string;
+  /** 已用 HttpOnly session 登入（瀏覽器不持有 token 字串） */
+  hasServerSession?: boolean;
+  /** /api/auth/google/start 失敗訊息 */
+  oauthStartError?: string;
 }
 
 export function StateSidebar({ state }: { state: OAuthState }) {
@@ -18,7 +18,10 @@ export function StateSidebar({ state }: { state: OAuthState }) {
     urlParams[k] = v;
   });
   const entries = Object.entries(urlParams);
-  const hasState = Object.keys(state).some((k) => state[k as keyof OAuthState]);
+  const hasState = Object.keys(state).some((k) => {
+    const v = state[k as keyof OAuthState];
+    return v !== undefined && v !== "";
+  });
 
   return (
     <aside
@@ -79,19 +82,11 @@ export function StateSidebar({ state }: { state: OAuthState }) {
                   </dd>
                 </div>
               )}
-              {state.authCode && (
+              {state.hasServerSession && (
                 <div>
-                  <dt className="text-zinc-600 dark:text-zinc-400">authorization_code</dt>
-                  <dd className="text-blue-700 dark:text-blue-400 truncate text-xs" title={state.authCode}>
-                    {state.authCode.slice(0, 16)}…
-                  </dd>
-                </div>
-              )}
-              {state.accessToken && (
-                <div>
-                  <dt className="text-zinc-600 dark:text-zinc-400">access_token</dt>
-                  <dd className="text-green-700 dark:text-green-400 truncate text-xs" title={state.accessToken}>
-                    ***
+                  <dt className="text-zinc-600 dark:text-zinc-400">session</dt>
+                  <dd className="text-green-700 dark:text-green-400 text-xs">
+                    HttpOnly cookie（oauth_session）
                   </dd>
                 </div>
               )}

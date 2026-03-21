@@ -3,51 +3,34 @@
 export const SEQUENCE_STEPS = [
   {
     id: 0,
-    label: "Generate PKCE",
+    label: "PKCE",
     detail: "Browser: code_verifier → SHA-256 → code_challenge",
     hintZh:
-      "先在下方「Live Cryptography」按 Generate，產生 code_verifier 與 code_challenge。",
+      "在「Live Cryptography」按 Generate，產生 verifier / challenge。",
   },
   {
     id: 1,
-    label: "Authorize",
-    detail: "Redirect to accounts.google.com with code_challenge (S256)",
+    label: "Sign in with Google",
+    detail:
+      "POST /api/auth/google/start → redirect Google → 使用者同意 → 302 帶 code 回 /api/auth/callback",
     hintZh:
-      "在「OAuth Flow」按 Login with Google，瀏覽器會帶著 challenge 導向 Google。",
+      "按 Login：HttpOnly 存 verifier；在 Google 登入並同意；同意後瀏覽器帶 ?code= 打 callback（見 Network）。",
   },
   {
     id: 2,
-    label: "User consents",
-    detail: "Google stores challenge; user signs in & approves scopes",
+    label: "Exchange & session",
+    detail:
+      "Route Handler：code + HttpOnly verifier → POST Google /token → Set-Cookie oauth_session → redirect",
     hintZh:
-      "在 Google 頁面登入並同意授權（此步發生在 Google，不在本頁）。",
+      "換票與 cookie 全在伺服器。下方「視覺化」①② 對照 ?code 與 POST /token。",
   },
   {
     id: 3,
-    label: "Authorization code",
-    detail: "Redirect to /auth/callback?code=…",
-    hintZh:
-      "同意後 Google 把你導回 /auth/callback，網址會帶 ?code= 授權碼。",
-  },
-  {
-    id: 4,
-    label: "Token request",
-    detail: "POST oauth2.googleapis.com/token with code + code_verifier",
-    hintZh:
-      "Callback 頁會用 code + code_verifier POST 到 token 端點（畫面上會先預覽）。",
-  },
-  {
-    id: 5,
-    label: "Tokens",
-    detail: "access_token, id_token (optional refresh_token)",
-    hintZh: "Google 回傳 access_token（與可選的 id_token、refresh_token）。",
-  },
-  {
-    id: 6,
     label: "UserInfo",
-    detail: "GET userinfo with Bearer access_token",
+    detail:
+      "GET /api/auth/session → App 用 access 打 userinfo → 200 { user } 給瀏覽器",
     hintZh:
-      "用 access_token 呼叫 UserInfo，下方會顯示大頭照與 email。",
+      "已登入後由後端取 profile；或造訪 /protected。",
   },
 ] as const;
 
@@ -65,15 +48,22 @@ export function SequenceDiagram({
   onStepAction,
   actionFeedback,
 }: SequenceDiagramProps) {
-  const active = Math.min(6, Math.max(0, syncedStep));
+  const active = Math.min(3, Math.max(0, syncedStep));
 
   return (
     <section id="section-sequence-diagram" className="space-y-4">
       <h2 className="text-lg font-semibold text-zinc-900 dark:text-zinc-100">
-        Synced Sequence Diagram (ROB-7)
+        Synced Sequence Diagram（4 步）
       </h2>
       <p className="text-sm text-zinc-500 dark:text-zinc-400">
-        建議由上往下看：圖會依你目前狀態自動對齊步驟；點步驟按鈕可捲到對應區塊或觸發 Generate / Login。
+        圖會依狀態對齊；點步驟可捲到對應區塊。③ 換票細節見下方「
+        <a
+          href="#section-oauth-flow-visual"
+          className="text-emerald-600 dark:text-emerald-400 underline underline-offset-2"
+        >
+          視覺化：?code 與 POST /token
+        </a>
+        」。
       </p>
 
       {actionFeedback && (
@@ -84,8 +74,8 @@ export function SequenceDiagram({
 
       <div className="rounded-xl border border-zinc-200 dark:border-zinc-700 bg-zinc-50/80 dark:bg-zinc-900/50 p-4 overflow-x-auto">
         <svg
-          viewBox="0 0 520 340"
-          className="w-full max-w-2xl mx-auto text-zinc-800 dark:text-zinc-200"
+          viewBox="0 0 560 430"
+          className="w-full max-w-3xl mx-auto text-zinc-800 dark:text-zinc-200"
           aria-hidden
         >
           <defs>
@@ -101,122 +91,226 @@ export function SequenceDiagram({
             </marker>
           </defs>
 
+          {/* Participants */}
           <rect
-            x="40"
-            y="20"
-            width="120"
-            height="36"
+            x="16"
+            y="14"
+            width="118"
+            height="34"
             rx="8"
             className="fill-amber-500/15 stroke-amber-600 dark:stroke-amber-400"
             strokeWidth="1.5"
           />
-          <text x="100" y="42" textAnchor="middle" className="fill-current text-sm font-medium">
+          <text x="75" y="35" textAnchor="middle" className="fill-current text-sm font-medium">
             Browser
           </text>
 
           <rect
-            x="360"
-            y="20"
-            width="120"
-            height="36"
+            x="198"
+            y="14"
+            width="124"
+            height="34"
+            rx="8"
+            className="fill-sky-500/15 stroke-sky-600 dark:stroke-sky-400"
+            strokeWidth="1.5"
+          />
+          <text x="260" y="35" textAnchor="middle" className="fill-current text-sm font-medium">
+            Next.js App
+          </text>
+
+          <rect
+            x="386"
+            y="14"
+            width="118"
+            height="34"
             rx="8"
             className="fill-emerald-500/15 stroke-emerald-600 dark:stroke-emerald-400"
             strokeWidth="1.5"
           />
-          <text x="420" y="42" textAnchor="middle" className="fill-current text-sm font-medium">
+          <text x="445" y="35" textAnchor="middle" className="fill-current text-sm font-medium">
             Google
           </text>
 
-          <line x1="100" y1="56" x2="100" y2="320" stroke="currentColor" strokeOpacity="0.2" strokeDasharray="4 4" />
-          <line x1="420" y1="56" x2="420" y2="320" stroke="currentColor" strokeOpacity="0.2" strokeDasharray="4 4" />
+          {/* Lifelines */}
+          <line x1="75" y1="52" x2="75" y2="412" stroke="currentColor" strokeOpacity="0.2" strokeDasharray="4 4" />
+          <line x1="260" y1="52" x2="260" y2="412" stroke="currentColor" strokeOpacity="0.2" strokeDasharray="4 4" />
+          <line x1="445" y1="52" x2="445" y2="412" stroke="currentColor" strokeOpacity="0.2" strokeDasharray="4 4" />
 
+          {/* Step 0: PKCE in browser */}
           <path
-            d="M 100 80 L 60 80 L 60 115 L 140 115 L 140 80 L 100 80"
+            d="M 75 78 L 40 78 L 40 108 L 110 108 L 110 78 L 75 78"
             fill="none"
             strokeWidth={active === 0 ? 3 : 1.5}
             className={active === 0 ? "stroke-amber-500" : "stroke-zinc-400 dark:stroke-zinc-500"}
             markerEnd="url(#seq-arrowhead)"
           />
-          <text x="100" y="104" textAnchor="middle" className="fill-current text-[10px]">
-            PKCE
+          <text x="75" y="100" textAnchor="middle" className="fill-current text-[9px]">
+            PKCE (verifier → challenge)
+          </text>
+
+          {/* Step 1: start + redirect */}
+          <line
+            x1="75"
+            y1="124"
+            x2="260"
+            y2="124"
+            strokeWidth={active === 1 ? 3 : 1.5}
+            className={active === 1 ? "stroke-sky-500" : "stroke-zinc-400 dark:stroke-zinc-500"}
+            markerEnd="url(#seq-arrowhead)"
+          />
+          <text x="167" y="118" textAnchor="middle" className="fill-current text-[9px]">
+            POST /api/auth/google/start
           </text>
 
           <line
-            x1="140"
-            y1="140"
-            x2="360"
-            y2="140"
+            x1="260"
+            y1="138"
+            x2="75"
+            y2="138"
+            strokeWidth={active === 1 ? 3 : 1.5}
+            strokeDasharray={active === 1 ? undefined : "5 4"}
+            className={active === 1 ? "stroke-sky-500" : "stroke-zinc-400 dark:stroke-zinc-500"}
+            markerEnd="url(#seq-arrowhead)"
+          />
+          <text x="167" y="132" textAnchor="middle" className="fill-current text-[9px]">
+            url + Set-Cookie verifier
+          </text>
+
+          <line
+            x1="75"
+            y1="152"
+            x2="445"
+            y2="152"
             strokeWidth={active === 1 ? 3 : 1.5}
             className={active === 1 ? "stroke-emerald-500" : "stroke-zinc-400 dark:stroke-zinc-500"}
             markerEnd="url(#seq-arrowhead)"
           />
-          <text x="250" y="132" textAnchor="middle" className="fill-current text-[10px]">
-            GET /auth + code_challenge
+          <text x="260" y="146" textAnchor="middle" className="fill-current text-[9px]">
+            GET /auth ?code_challenge (S256)
           </text>
 
+          {/* Step 2: consent */}
           <rect
-            x="300"
-            y="155"
-            width="200"
+            x="378"
+            y="164"
+            width="134"
             height="28"
             rx="4"
-            className={active === 2 ? "fill-violet-500/20 stroke-violet-500" : "fill-zinc-200/50 dark:fill-zinc-800/50 stroke-zinc-300 dark:stroke-zinc-600"}
-            strokeWidth={active === 2 ? 2 : 1}
+            className={active === 1 ? "fill-violet-500/20 stroke-violet-500" : "fill-zinc-200/50 dark:fill-zinc-800/50 stroke-zinc-300 dark:stroke-zinc-600"}
+            strokeWidth={active === 1 ? 2 : 1}
           />
-          <text x="400" y="172" textAnchor="middle" className="fill-current text-[10px]">
+          <text x="445" y="182" textAnchor="middle" className="fill-current text-[9px]">
             User consents
           </text>
 
+          {/* Step 2: callback */}
           <line
-            x1="360"
-            y1="200"
-            x2="140"
-            y2="200"
+            x1="75"
+            y1="210"
+            x2="260"
+            y2="210"
+            strokeWidth={active === 2 ? 3 : 1.5}
+            className={active === 2 ? "stroke-sky-500" : "stroke-zinc-400 dark:stroke-zinc-500"}
+            markerEnd="url(#seq-arrowhead)"
+          />
+          <text x="167" y="204" textAnchor="middle" className="fill-current text-[9px]">
+            GET /api/auth/callback?code=
+          </text>
+
+          {/* Step 2 cont.: token (server → Google) */}
+          <line
+            x1="260"
+            y1="238"
+            x2="445"
+            y2="238"
+            strokeWidth={active === 2 ? 3 : 1.5}
+            className={active === 2 ? "stroke-emerald-500" : "stroke-zinc-400 dark:stroke-zinc-500"}
+            markerEnd="url(#seq-arrowhead)"
+          />
+          <text x="352" y="232" textAnchor="middle" className="fill-current text-[9px]">
+            POST /token (code + verifier)
+          </text>
+
+          {/* Step 2 cont.: tokens back + session cookie */}
+          <line
+            x1="445"
+            y1="266"
+            x2="260"
+            y2="266"
+            strokeWidth={active === 2 ? 3 : 1.5}
+            className={active === 2 ? "stroke-emerald-500" : "stroke-zinc-400 dark:stroke-zinc-500"}
+            markerEnd="url(#seq-arrowhead)"
+          />
+          <text x="352" y="260" textAnchor="middle" className="fill-current text-[9px]">
+            token JSON
+          </text>
+
+          <line
+            x1="260"
+            y1="284"
+            x2="75"
+            y2="284"
+            strokeWidth={active === 2 ? 3 : 1.5}
+            className={active === 2 ? "stroke-sky-500" : "stroke-zinc-400 dark:stroke-zinc-500"}
+            markerEnd="url(#seq-arrowhead)"
+          />
+          <text x="167" y="278" textAnchor="middle" className="fill-current text-[9px]">
+            Set-Cookie oauth_session + redirect
+          </text>
+
+          {/* Step 3: session → userinfo → profile back → JSON to browser */}
+          <line
+            x1="75"
+            y1="308"
+            x2="260"
+            y2="308"
+            strokeWidth={active === 3 ? 3 : 1.5}
+            className={active === 3 ? "stroke-amber-500" : "stroke-zinc-400 dark:stroke-zinc-500"}
+            markerEnd="url(#seq-arrowhead)"
+          />
+          <text x="167" y="302" textAnchor="middle" className="fill-current text-[9px]">
+            GET /api/auth/session (cookie)
+          </text>
+
+          <line
+            x1="260"
+            y1="326"
+            x2="445"
+            y2="326"
             strokeWidth={active === 3 ? 3 : 1.5}
             className={active === 3 ? "stroke-emerald-500" : "stroke-zinc-400 dark:stroke-zinc-500"}
             markerEnd="url(#seq-arrowhead)"
           />
-          <text x="250" y="192" textAnchor="middle" className="fill-current text-[10px]">
-            ?code=authorization_code
+          <text x="352" y="320" textAnchor="middle" className="fill-current text-[9px]">
+            GET oauth2/v2/userinfo
           </text>
 
           <line
-            x1="140"
-            y1="235"
-            x2="360"
-            y2="235"
-            strokeWidth={active === 4 ? 3 : 1.5}
-            className={active === 4 ? "stroke-emerald-500" : "stroke-zinc-400 dark:stroke-zinc-500"}
+            x1="445"
+            y1="344"
+            x2="260"
+            y2="344"
+            strokeWidth={active === 3 ? 3 : 1.5}
+            className={active === 3 ? "stroke-emerald-500" : "stroke-zinc-400 dark:stroke-zinc-500"}
             markerEnd="url(#seq-arrowhead)"
+            strokeDasharray={active === 3 ? undefined : "5 4"}
           />
-          <text x="250" y="227" textAnchor="middle" className="fill-current text-[10px]">
-            POST /token + code_verifier
+          <text x="352" y="338" textAnchor="middle" className="fill-current text-[9px]">
+            200 profile JSON (email, name, …)
           </text>
 
           <line
-            x1="360"
-            y1="265"
-            x2="140"
-            y2="265"
-            strokeWidth={active === 5 ? 3 : 1.5}
-            className={active === 5 ? "stroke-emerald-500" : "stroke-zinc-400 dark:stroke-zinc-500"}
+            x1="260"
+            y1="362"
+            x2="75"
+            y2="362"
+            strokeWidth={active === 3 ? 3 : 1.5}
+            className={active === 3 ? "stroke-sky-500" : "stroke-zinc-400 dark:stroke-zinc-500"}
             markerEnd="url(#seq-arrowhead)"
+            strokeDasharray={active === 3 ? undefined : "5 4"}
           />
-          <text x="250" y="257" textAnchor="middle" className="fill-current text-[10px]">
-            access_token JSON
-          </text>
-
-          <line
-            x1="140"
-            y1="295"
-            x2="360"
-            y2="295"
-            strokeWidth={active === 6 ? 3 : 1.5}
-            className={active === 6 ? "stroke-amber-500" : "stroke-zinc-400 dark:stroke-zinc-500"}
-            markerEnd="url(#seq-arrowhead)"
-          />
-          <text x="250" y="287" textAnchor="middle" className="fill-current text-[10px]">
-            GET /userinfo Bearer
+          <text x="167" y="356" textAnchor="middle" className="fill-current text-[9px]">
+            {"200 { authenticated, user }"}
           </text>
         </svg>
       </div>
