@@ -20,7 +20,10 @@ export function StateSidebar({ state }: { state: OAuthState }) {
   const hasState = Object.keys(state).some((k) => state[k as keyof OAuthState]);
 
   return (
-    <aside className="w-72 shrink-0 border-l border-zinc-200 dark:border-zinc-800 bg-zinc-50/50 dark:bg-zinc-950/50 flex flex-col overflow-hidden">
+    <aside
+      id="state-sidebar"
+      className="w-72 shrink-0 border-l border-zinc-200 dark:border-zinc-800 bg-zinc-50/50 dark:bg-zinc-950/50 flex flex-col overflow-hidden"
+    >
       <div className="px-4 py-3 border-b border-zinc-200 dark:border-zinc-800">
         <h3 className="text-xs font-semibold uppercase tracking-wider text-zinc-500 dark:text-zinc-400">
           State Inspector

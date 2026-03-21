@@ -23,6 +23,17 @@ function getConfig(): GoogleOAuthConfig {
   return { clientId, redirectUri };
 }
 
+/** 不 throw，給教學 UI / callback 預覽用 */
+export function peekOAuthConfig(): GoogleOAuthConfig | null {
+  const clientId = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID;
+  if (!clientId) return null;
+  const redirectUri =
+    typeof window !== "undefined"
+      ? `${window.location.origin}/auth/callback`
+      : "";
+  return { clientId, redirectUri };
+}
+
 /** Build authorization URL for redirect to Google */
 export function buildAuthUrl(
   codeChallenge: string,
@@ -72,8 +83,28 @@ export async function exchangeCodeForTokens(
   return res.json();
 }
 
+/** Fetch user profile using access token */
+export async function fetchUserInfo(accessToken: string): Promise<{
+  id: string;
+  email: string;
+  verified_email: boolean;
+  name: string;
+  given_name?: string;
+  family_name?: string;
+  picture?: string;
+  locale?: string;
+}> {
+  const res = await fetch("https://www.googleapis.com/oauth2/v2/userinfo", {
+    headers: { Authorization: `Bearer ${accessToken}` },
+  });
+  if (!res.ok) throw new Error(`UserInfo failed: ${res.status}`);
+  return res.json();
+}
+
 /** SessionStorage keys for OAuth flow (verifier persists across redirect) */
 export const STORAGE_KEYS = {
   PKCE_VERIFIER: "oauth_pkce_verifier",
   OAUTH_RESULT: "oauth_result",
+  /** Set before redirect to Google; cleared on success / logout */
+  OAUTH_PENDING_GOOGLE: "oauth_pending_google",
 } as const;

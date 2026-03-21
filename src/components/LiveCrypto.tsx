@@ -1,6 +1,11 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import {
+  useState,
+  useCallback,
+  forwardRef,
+  useImperativeHandle,
+} from "react";
 import {
   generateCodeVerifier,
   computeCodeChallenge,
@@ -13,9 +18,14 @@ interface LiveCryptoProps {
   onStateChange: (state: Partial<OAuthState>) => void;
 }
 
+export type LiveCryptoHandle = {
+  generate: () => Promise<void>;
+};
+
 type PipelineStep = "idle" | "verifier" | "hashing" | "challenge";
 
-export function LiveCrypto({ onStateChange }: LiveCryptoProps) {
+export const LiveCrypto = forwardRef<LiveCryptoHandle, LiveCryptoProps>(
+  function LiveCrypto({ onStateChange }, ref) {
   const [verifier, setVerifier] = useState<string>("");
   const [hashHex, setHashHex] = useState<string>("");
   const [challenge, setChallenge] = useState<string>("");
@@ -46,8 +56,16 @@ export function LiveCrypto({ onStateChange }: LiveCryptoProps) {
     setIsAnimating(false);
   }, [onStateChange]);
 
+  useImperativeHandle(
+    ref,
+    () => ({
+      generate: () => generate(),
+    }),
+    [generate]
+  );
+
   return (
-    <section className="space-y-6">
+    <section id="section-live-crypto" className="space-y-6">
       <div className="flex items-center justify-between">
         <h2 className="text-lg font-semibold text-zinc-900 dark:text-zinc-100">
           Live Cryptography
@@ -139,4 +157,5 @@ export function LiveCrypto({ onStateChange }: LiveCryptoProps) {
       )}
     </section>
   );
-}
+  }
+);
