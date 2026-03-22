@@ -17,6 +17,7 @@ import { UserProfile } from "@/components/UserProfile";
 import { SequenceDiagram } from "@/components/SequenceDiagram";
 import { FlowStepSpotlight } from "@/components/FlowStepSpotlight";
 import { OAuthFlowVisual } from "@/components/OAuthFlowVisual";
+import { AttackerPovPanel } from "@/components/AttackerPovPanel";
 import { STORAGE_KEYS } from "@/lib/google-oauth";
 import { deriveOAuthStep } from "@/lib/oauthFlowStep";
 import type { OAuthState } from "@/components/StateSidebar";
@@ -42,6 +43,8 @@ function HomeContent() {
   const [state, setState] = useState<OAuthState>({});
   const [sessionUser, setSessionUser] = useState<SessionUser | null>(null);
   const [actionFeedback, setActionFeedback] = useState<string | null>(null);
+  /** 本輪 callback 的真實 code（供視覺化；來自 redirect 或 sessionStorage） */
+  const [displayAuthCode, setDisplayAuthCode] = useState<string | null>(null);
   const liveRef = useRef<LiveCryptoHandle>(null);
   const oauthRef = useRef<OAuthFlowHandle>(null);
 
@@ -82,10 +85,21 @@ function HomeContent() {
     void loadSession();
   }, [loadSession]);
 
+  useLayoutEffect(() => {
+    if (typeof window === "undefined") return;
+    const stored = sessionStorage.getItem(STORAGE_KEYS.OAUTH_LAST_DISPLAY_CODE);
+    if (stored) setDisplayAuthCode(stored);
+  }, []);
+
   useEffect(() => {
     const oauth = searchParams.get("oauth");
     const err = searchParams.get("oauth_error");
+    const showCode = searchParams.get("show_code");
     if (oauth === "success") {
+      if (showCode) {
+        setDisplayAuthCode(showCode);
+        sessionStorage.setItem(STORAGE_KEYS.OAUTH_LAST_DISPLAY_CODE, showCode);
+      }
       void loadSession().then(() => {
         router.replace("/", { scroll: false });
       });
@@ -108,12 +122,16 @@ function HomeContent() {
       credentials: "include",
     });
     sessionStorage.removeItem(STORAGE_KEYS.OAUTH_PENDING_GOOGLE);
+    sessionStorage.removeItem(STORAGE_KEYS.OAUTH_LAST_DISPLAY_CODE);
+    setDisplayAuthCode(null);
     setSessionUser(null);
     setState({});
   }, []);
 
   const clearBeforeNewPkce = useCallback(() => {
     sessionStorage.removeItem(STORAGE_KEYS.OAUTH_PENDING_GOOGLE);
+    sessionStorage.removeItem(STORAGE_KEYS.OAUTH_LAST_DISPLAY_CODE);
+    setDisplayAuthCode(null);
     setState({
       codeVerifier: undefined,
       codeChallenge: undefined,
@@ -196,6 +214,8 @@ function HomeContent() {
             actionFeedback={actionFeedback}
           />
 
+          <AttackerPovPanel />
+
           <div className="my-10 border-t border-zinc-200 dark:border-zinc-800 pt-10">
             <p className="text-sm font-medium text-zinc-500 dark:text-zinc-400 mb-6">
               依序操作（與圖中步驟對應）
@@ -249,6 +269,7 @@ function HomeContent() {
             )}
 
             <OAuthFlowVisual
+              authorizationCode={displayAuthCode ?? undefined}
               codeVerifier={state.codeVerifier}
               clientId={process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID}
               serverSessionActive={state.hasServerSession}

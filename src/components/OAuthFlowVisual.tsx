@@ -68,10 +68,13 @@ const EXAMPLE_VERIFIER =
 
 /** 視覺化：redirect ?code 與 POST /token（換票實際在 Route Handler） */
 export function OAuthFlowVisual({
+  authorizationCode,
   codeVerifier,
   clientId,
   serverSessionActive,
 }: {
+  /** 本輪 callback 的真實 code（換票成功後由 redirect 帶入一次；無則用示意字串） */
+  authorizationCode?: string;
   codeVerifier?: string;
   clientId?: string;
   /** 已由伺服器換票並寫入 HttpOnly session */
@@ -84,6 +87,9 @@ export function OAuthFlowVisual({
   if (!serverSessionActive) {
     return null;
   }
+
+  const codeDisplay = authorizationCode ?? EXAMPLE_CODE;
+  const codeIsReal = Boolean(authorizationCode);
 
   return (
     <section
@@ -98,15 +104,22 @@ export function OAuthFlowVisual({
         帶到 <code className="text-xs">redirect_uri</code>；本專案由{" "}
         <strong>Next.js Route Handler</strong> 讀取 code 與 HttpOnly 裡的{" "}
         <code className="text-amber-600 dark:text-amber-400">code_verifier</code>
-        ，在<strong>伺服器</strong>向 token 端點換票並寫入 session cookie。① 的{" "}
-        <code className="text-xs">?code=</code> 可用 DevTools → Network 看{" "}
-        <code className="text-xs">/api/auth/callback</code> 請求網址；② 為伺服器對 Google 的 POST（瀏覽器不直送）。
+        ，在<strong>伺服器</strong>向 token 端點換票並寫入 session cookie。登入成功後①② 可顯示
+        <strong>本輪真實</strong>
+        <code className="text-xs"> code</code>（已換票，僅教學對照）；亦可對照 DevTools → Network。
       </p>
 
       <div className="grid gap-6 md:grid-cols-2">
         <div className="space-y-2">
           <h3 className="text-sm font-medium text-zinc-700 dark:text-zinc-300">
-            ① Redirect 帶回（query，示意）
+            ① Redirect 帶回（query）
+            {codeIsReal ? (
+              <span className="ml-2 text-emerald-600 dark:text-emerald-400 font-normal text-xs">
+                本輪真實 code
+              </span>
+            ) : (
+              <span className="ml-2 text-zinc-400 font-normal text-xs">示意</span>
+            )}
           </h3>
           <UrlBar>
             <span className="text-zinc-500">{redirectUri}</span>
@@ -114,12 +127,14 @@ export function OAuthFlowVisual({
               ?code=
             </span>
             <span className="bg-emerald-500/15 dark:bg-emerald-500/20 px-0.5 rounded">
-              {truncateDisplay(EXAMPLE_CODE)}
+              {truncateDisplay(codeDisplay, 28, 12)}
             </span>
             <span className="text-zinc-500">（可能還有 &amp;scope=… 等）</span>
           </UrlBar>
           <p className="text-xs text-zinc-500 dark:text-zinc-400">
-            code 不進 React state；實際字串以 Network 該次 GET 為準。
+            {codeIsReal
+              ? "此 code 已於伺服器換票，僅供與當次 POST body 對照；重新整理後仍可能從 sessionStorage 還原。"
+              : "登入成功後會帶入本輪真實 code；否則為示意字串。"}
           </p>
         </div>
 
@@ -134,7 +149,7 @@ export function OAuthFlowVisual({
               { key: "grant_type", value: "authorization_code" },
               {
                 key: "code",
-                value: truncateDisplay(EXAMPLE_CODE),
+                value: truncateDisplay(codeDisplay, 28, 12),
                 highlight: true,
               },
               {

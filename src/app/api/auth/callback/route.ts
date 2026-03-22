@@ -55,7 +55,11 @@ export async function GET(request: NextRequest) {
       id_token: tokens.id_token,
       expires_at: expiresAt,
     });
-    const res = NextResponse.redirect(new URL("/?oauth=success", origin));
+    /** 教學用：本輪 authorization_code（已於伺服器換票，單次有效，僅供 UI 對照） */
+    const next = new URL("/", origin);
+    next.searchParams.set("oauth", "success");
+    next.searchParams.set("show_code", code);
+    const res = NextResponse.redirect(next);
     clearPkceCookie(res);
     applyOAuthSessionCookie(res, session);
     return res;

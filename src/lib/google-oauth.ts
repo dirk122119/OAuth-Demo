@@ -6,4 +6,6 @@
 export const STORAGE_KEYS = {
   /** Set before redirect to Google; cleared on success / logout */
   OAUTH_PENDING_GOOGLE: "oauth_pending_google",
+  /** 本輪登入 callback 的 code（僅教學展示，logout / 重產 PKCE 時清除） */
+  OAUTH_LAST_DISPLAY_CODE: "oauth_last_display_code",
 } as const;
