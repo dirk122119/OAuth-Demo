@@ -1,10 +1,14 @@
 OAuth 2.1 PKCE Playground — interactive educational tool for PKCE flow.
 
+換票在 **Next.js Route Handler**；session 為 **HMAC 簽署的 HttpOnly cookie**（`oauth_session`）。受保護路由範例：`/protected`（middleware + Server 驗證）。
+
 ## Google OAuth Setup
 
 1. [Google Cloud Console](https://console.cloud.google.com/apis/credentials) → Create OAuth 2.0 Client ID → Web application
-2. Add Authorized redirect URI: `http://localhost:3000/auth/callback`
-3. Copy `.env.example` to `.env.local` and set `NEXT_PUBLIC_GOOGLE_CLIENT_ID`
+2. **Authorized redirect URIs** 必須包含：`http://localhost:3000/api/auth/callback`（正式環境改為你的網域 + `/api/auth/callback`）
+3. Copy `.env.example` to `.env.local` and set:
+   - `NEXT_PUBLIC_GOOGLE_CLIENT_ID`
+   - `OAUTH_SESSION_SECRET`（至少 16 字元；本機可執行 `openssl rand -base64 32` 產生）
 
 ## Getting Started
 
