@@ -1,6 +1,6 @@
 "use client";
 
-import type { ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { truncateDisplay } from "@/lib/oauthDisplay";
 
 function UrlBar({ children }: { children: ReactNode }) {
@@ -80,9 +80,11 @@ export function OAuthFlowVisual({
   /** 已由伺服器換票並寫入 HttpOnly session */
   serverSessionActive?: boolean;
 }) {
-  const origin =
-    typeof window !== "undefined" ? window.location.origin : "https://your-app";
-  const redirectUri = `${origin}/api/auth/callback`;
+  const [redirectUri, setRedirectUri] = useState("https://your-app/api/auth/callback");
+
+  useEffect(() => {
+    setRedirectUri(`${window.location.origin}/api/auth/callback`);
+  }, []);
 
   if (!serverSessionActive) {
     return null;

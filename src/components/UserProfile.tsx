@@ -33,7 +33,7 @@ export function UserProfile({ user }: { user: SessionUser | null }) {
           <p className="text-sm text-zinc-600 dark:text-zinc-400 truncate">
             {user.email}
           </p>
-          <p className="text-xs text-zinc-500 font-mono mt-1">
+          <p className="text-xs text-zinc-500 dark:text-zinc-400 font-mono mt-1">
             ID: {user.id}
           </p>
         </div>

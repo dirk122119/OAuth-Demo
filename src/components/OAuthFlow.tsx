@@ -16,6 +16,18 @@ export type OAuthFlowHandle = {
   startLogin: () => void;
 };
 
+/** Google 授權頁必須為絕對 https URL，避免異常回應導致 javascript: 等導向 */
+function parseGoogleAuthRedirectUrl(raw: unknown): URL | null {
+  if (typeof raw !== "string" || !raw.trim()) return null;
+  try {
+    const u = new URL(raw.trim());
+    if (u.protocol !== "https:") return null;
+    return u;
+  } catch {
+    return null;
+  }
+}
+
 export const OAuthFlow = forwardRef<OAuthFlowHandle, OAuthFlowProps>(
   function OAuthFlow(
     {
@@ -53,8 +65,19 @@ export const OAuthFlow = forwardRef<OAuthFlowHandle, OAuthFlowProps>(
         });
         return;
       }
-      const { url } = (await res.json()) as { url: string };
-      window.location.href = url;
+      const body = (await res.json().catch(() => null)) as {
+        url?: unknown;
+      } | null;
+      const authUrl = parseGoogleAuthRedirectUrl(body?.url);
+      if (!authUrl) {
+        sessionStorage.removeItem(STORAGE_KEYS.OAUTH_PENDING_GOOGLE);
+        onStateChange({
+          oauthStartError:
+            "伺服器回傳的授權網址無效（需為非空字串且為 https URL）",
+        });
+        return;
+      }
+      window.location.href = authUrl.href;
     }, [codeVerifier, codeChallenge, canLogin, onStateChange]);
 
     useImperativeHandle(

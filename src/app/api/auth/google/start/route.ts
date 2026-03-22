@@ -42,7 +42,7 @@ export async function POST(request: NextRequest) {
     });
     return res;
   } catch (e) {
-    const msg = e instanceof Error ? e.message : String(e);
-    return NextResponse.json({ error: msg }, { status: 500 });
+    console.error("[api/auth/google/start]", e);
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 }

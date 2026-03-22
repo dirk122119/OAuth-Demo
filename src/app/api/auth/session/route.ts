@@ -42,7 +42,10 @@ export async function GET() {
     }
     return res;
   } catch (e) {
-    const msg = e instanceof Error ? e.message : String(e);
-    return NextResponse.json({ error: msg }, { status: 500 });
+    console.error("Session check failed:", e);
+    return NextResponse.json(
+      { error: "An error occurred while checking session" },
+      { status: 500 }
+    );
   }
 }
