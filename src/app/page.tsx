@@ -47,8 +47,16 @@ function HomeContent() {
   const [displayAuthCode, setDisplayAuthCode] = useState<string | null>(null);
   const liveRef = useRef<LiveCryptoHandle>(null);
   const oauthRef = useRef<OAuthFlowHandle>(null);
+  /** 避免首屏讀 sessionStorage 造成 SSR / hydration DOM 不一致 */
+  const [hasHydrated, setHasHydrated] = useState(false);
 
-  const syncedStep = useMemo(() => deriveOAuthStep(state), [state]);
+  const syncedStep = useMemo(
+    () =>
+      deriveOAuthStep(state, {
+        oauthSuccessInUrl: searchParams.get("oauth") === "success",
+      }),
+    [state, searchParams]
+  );
 
   const loadSession = useCallback(async () => {
     try {
@@ -71,14 +79,17 @@ function HomeContent() {
   }, []);
 
   const hasActivePlaygroundSession = useMemo(() => {
-    if (typeof window === "undefined") return false;
     if (state.hasServerSession) return true;
-    if (sessionStorage.getItem(STORAGE_KEYS.OAUTH_PENDING_GOOGLE)) return true;
-    return false;
-  }, [state.hasServerSession]);
+    if (!hasHydrated) return false;
+    return Boolean(sessionStorage.getItem(STORAGE_KEYS.OAUTH_PENDING_GOOGLE));
+  }, [state.hasServerSession, hasHydrated]);
 
   const handleStateChange = useCallback((partial: Partial<OAuthState>) => {
     setState((s) => ({ ...s, ...partial }));
+  }, []);
+
+  useLayoutEffect(() => {
+    setHasHydrated(true);
   }, []);
 
   useLayoutEffect(() => {
@@ -117,15 +128,30 @@ function HomeContent() {
   }, [actionFeedback]);
 
   const handleLogout = useCallback(async () => {
-    await fetch("/api/auth/logout", {
-      method: "POST",
-      credentials: "include",
-    });
-    sessionStorage.removeItem(STORAGE_KEYS.OAUTH_PENDING_GOOGLE);
-    sessionStorage.removeItem(STORAGE_KEYS.OAUTH_LAST_DISPLAY_CODE);
-    setDisplayAuthCode(null);
-    setSessionUser(null);
-    setState({});
+    try {
+      const res = await fetch("/api/auth/logout", {
+        method: "POST",
+        credentials: "include",
+      });
+      if (!res.ok) {
+        const body = await res.text().catch(() => "");
+        console.error("Logout failed:", res.status, body);
+        setActionFeedback(
+          `登出失敗（HTTP ${res.status}）${body ? `：${body.slice(0, 200)}` : ""}`
+        );
+        return;
+      }
+      sessionStorage.removeItem(STORAGE_KEYS.OAUTH_PENDING_GOOGLE);
+      sessionStorage.removeItem(STORAGE_KEYS.OAUTH_LAST_DISPLAY_CODE);
+      setDisplayAuthCode(null);
+      setSessionUser(null);
+      setState({});
+    } catch (e) {
+      console.error("Logout failed:", e);
+      setActionFeedback(
+        e instanceof Error ? `登出失敗：${e.message}` : "登出失敗：網路錯誤"
+      );
+    }
   }, []);
 
   const clearBeforeNewPkce = useCallback(() => {
@@ -181,7 +207,7 @@ function HomeContent() {
 
   return (
     <div className="flex h-screen bg-white dark:bg-zinc-950 text-zinc-900 dark:text-zinc-100">
-      <main className="flex-1 overflow-y-auto">
+      <main className="flex-1 min-w-0 overflow-y-auto">
         <div className="max-w-4xl mx-auto px-6 py-12">
           <header className="mb-8 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
             <div>
@@ -279,6 +305,7 @@ function HomeContent() {
           </div>
         </div>
       </main>
+      <StateSidebar state={state} syncedStep={syncedStep} />
     </div>
   );
 }

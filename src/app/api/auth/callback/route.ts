@@ -41,9 +41,11 @@ export async function GET(request: NextRequest) {
 
   const verifier = request.cookies.get(PKCE_VERIFIER_COOKIE)?.value;
   if (!verifier) {
-    return NextResponse.redirect(
+    const res = NextResponse.redirect(
       new URL("/?oauth_error=missing_pkce_cookie", origin)
     );
+    clearPkceCookie(res);
+    return res;
   }
 
   try {

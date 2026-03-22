@@ -11,6 +11,20 @@ export function getGoogleClientId(): string {
   return id;
 }
 
+/**
+ * Web 應用程式 OAuth 用戶端換票時 Google 會要求 client_secret（僅伺服器，勿用 NEXT_PUBLIC_）。
+ * @see https://developers.google.com/identity/protocols/oauth2/web-server#exchange-authorization-code
+ */
+function getGoogleClientSecret(): string {
+  const secret = process.env.GOOGLE_CLIENT_SECRET?.trim();
+  if (!secret) {
+    throw new Error(
+      "GOOGLE_CLIENT_SECRET is not set. In Google Cloud Console → Credentials → your OAuth 2.0 Web client, copy the Client secret. Add env GOOGLE_CLIENT_SECRET on your host (Vercel/Workers/etc.) and redeploy — .env.local is not shipped to production."
+    );
+  }
+  return secret;
+}
+
 export function buildGoogleAuthUrlServer(
   origin: string,
   codeChallenge: string,
@@ -44,16 +58,18 @@ export async function exchangeGoogleCodeForTokens(
 }> {
   const clientId = getGoogleClientId();
   const redirectUri = oauthCallbackUrl(origin);
+  const body = new URLSearchParams({
+    client_id: clientId,
+    client_secret: getGoogleClientSecret(),
+    code,
+    code_verifier: codeVerifier,
+    grant_type: "authorization_code",
+    redirect_uri: redirectUri,
+  });
   const res = await fetch(GOOGLE_TOKEN_URL, {
     method: "POST",
     headers: { "Content-Type": "application/x-www-form-urlencoded" },
-    body: new URLSearchParams({
-      client_id: clientId,
-      code,
-      code_verifier: codeVerifier,
-      grant_type: "authorization_code",
-      redirect_uri: redirectUri,
-    }),
+    body,
   });
   if (!res.ok) {
     const err = await res.text();
@@ -62,7 +78,7 @@ export async function exchangeGoogleCodeForTokens(
   return res.json();
 }
 
-/** Google OAuth refresh（公開 client 僅需 client_id + refresh_token） */
+/** Google OAuth refresh（Web client 常需一併送 client_secret） */
 export async function refreshGoogleAccessToken(refreshToken: string): Promise<{
   access_token: string;
   expires_in: number;
@@ -71,14 +87,16 @@ export async function refreshGoogleAccessToken(refreshToken: string): Promise<{
   token_type?: string;
 }> {
   const clientId = getGoogleClientId();
+  const body = new URLSearchParams({
+    client_id: clientId,
+    client_secret: getGoogleClientSecret(),
+    grant_type: "refresh_token",
+    refresh_token: refreshToken,
+  });
   const res = await fetch(GOOGLE_TOKEN_URL, {
     method: "POST",
     headers: { "Content-Type": "application/x-www-form-urlencoded" },
-    body: new URLSearchParams({
-      client_id: clientId,
-      grant_type: "refresh_token",
-      refresh_token: refreshToken,
-    }),
+    body,
   });
   if (!res.ok) {
     const err = await res.text();
