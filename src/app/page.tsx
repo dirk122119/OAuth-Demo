@@ -47,6 +47,8 @@ function HomeContent() {
   const [displayAuthCode, setDisplayAuthCode] = useState<string | null>(null);
   const liveRef = useRef<LiveCryptoHandle>(null);
   const oauthRef = useRef<OAuthFlowHandle>(null);
+  /** 避免首屏讀 sessionStorage 造成 SSR / hydration DOM 不一致 */
+  const [hasHydrated, setHasHydrated] = useState(false);
 
   const syncedStep = useMemo(() => deriveOAuthStep(state), [state]);
 
@@ -71,14 +73,17 @@ function HomeContent() {
   }, []);
 
   const hasActivePlaygroundSession = useMemo(() => {
-    if (typeof window === "undefined") return false;
     if (state.hasServerSession) return true;
-    if (sessionStorage.getItem(STORAGE_KEYS.OAUTH_PENDING_GOOGLE)) return true;
-    return false;
-  }, [state.hasServerSession]);
+    if (!hasHydrated) return false;
+    return Boolean(sessionStorage.getItem(STORAGE_KEYS.OAUTH_PENDING_GOOGLE));
+  }, [state.hasServerSession, hasHydrated]);
 
   const handleStateChange = useCallback((partial: Partial<OAuthState>) => {
     setState((s) => ({ ...s, ...partial }));
+  }, []);
+
+  useLayoutEffect(() => {
+    setHasHydrated(true);
   }, []);
 
   useLayoutEffect(() => {
